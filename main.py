@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPainter, QColor, QBrush, QPen, QIcon
 from PySide6.QtCore import Qt, QRectF, QSize, Signal
+import google_auth
 
 # --- 定数 ---
 # これらは後で設定ファイルから読み込むように変更します
@@ -142,6 +143,34 @@ class MainWindow(QMainWindow):
 
         content_layout.addWidget(self.title_bar)
         content_layout.addWidget(self.calendar_content, 1) # 残りのスペースを全て使う
+        # --- Google Calendar 連携 ---
+        self.gcal_service = None
+        self.connect_to_google()
+
+    def connect_to_google(self):
+        """Google APIに接続し、データを取得する"""
+        print("Googleアカウントに接続を試みています...")
+        self.gcal_service = google_auth.get_calendar_service()
+
+        if self.gcal_service:
+            print("\n--- 利用可能なカレンダー一覧 ---")
+            calendars = google_auth.get_calendar_list(self.gcal_service)
+            if calendars:
+                for calendar in calendars:
+                    summary = calendar.get('summary')
+                    cal_id = calendar.get('id')
+                    print(f"- {summary} (ID: {cal_id})")
+
+            print("\n--- 直近一週間の予定 (メインカレンダー) ---")
+            events = google_auth.get_events(self.gcal_service)
+            if not events:
+                print("予定は見つかりませんでした。")
+            else:
+                for event in events:
+                    start = event['start'].get('dateTime', event['start'].get('date'))
+                    print(f"{start} - {event['summary']}")
+        else:
+            print("Googleへの接続に失敗しました。アプリケーションを再起動して試してください。")
 
     def open_settings_window(self):
         # Phase 6で実装します
