@@ -1,17 +1,26 @@
 import os
+import sys
 import datetime
+from PySide6.QtWidgets import QApplication, QMessageBox
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from config import get_writable_path
+
+def resource_path(relative_path):
+    """ PyInstallerの一時フォルダ(_MEIPASS)か、スクリプトの場所からリソースを探す """
+    if hasattr(sys, '_MEIPASS'):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 # --- 定数 ---
-# このスコープはカレンダーの読み取り権限を要求します。
-# もし将来的に書き込みもしたくなったら、URLの readonly を外します。
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-CREDENTIALS_FILE = 'credentials.json'
-TOKEN_FILE = 'token.json'
+CREDENTIALS_FILE = resource_path('credentials.json')
+TOKEN_FILE = get_writable_path('token.json') # config.py からインポートした関数を使用
 
 def get_calendar_service():
     """
@@ -39,7 +48,18 @@ def get_calendar_service():
             if not os.path.exists(CREDENTIALS_FILE):
                 print(f"エラー: 認証情報ファイル '{CREDENTIALS_FILE}' が見つかりません。")
                 return None
-            
+
+            # 認証前にユーザーに通知するポップアップを表示
+            app = QApplication.instance()
+            if app:
+                msg_box = QMessageBox()
+                msg_box.setIcon(QMessageBox.Information)
+                msg_box.setText("Googleアカウント認証が必要です")
+                msg_box.setInformativeText("ブラウザが起動します。\nGoogleアカウントにログインし、カレンダーへのアクセスを許可してください。")
+                msg_box.setWindowTitle("初回セットアップ")
+                msg_box.setStandardButtons(QMessageBox.Ok)
+                msg_box.exec()
+
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
             # run_local_server は自動でブラウザを開き、認証後にサーバーを閉じる
             creds = flow.run_local_server(port=0)
